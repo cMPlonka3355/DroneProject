@@ -1,64 +1,50 @@
-import time  # Used to track authentication attempts
-import hmac  # Used to verify the authentication token
-import hashlib  # SHA-256 hashing functions
-from flask import Flask, request, jsonify  # used to create an HTTP server
+import time
+import hmac                    # verifying secure token
+import hashlib                 # hashing token data
+from flask import Flask, request, jsonify  # Flask web server
 
-# Create Flask web app to handle authentication requests
+# Create Flask app to handle incoming HTTP requests
 app = Flask(__name__)
 
-# Secret key (same as in the truck) to verify authentication tokens
+# Secret key must match the one used by the truck
 SECRET_KEY = b"supersecurekey"
 
-# Prevent authentication flooding
-MAX_ATTEMPTS = 5  # Maximum number of failed authentication attempts
-BLOCK_TIME = 300  # Block time in seconds (5 minutes)
-auth_attempts = {}  # track authentication attempts per IP
-
 def verify_token(token, timestamp):
-    """Verify if the received token is valid."""
-
-    # Generate the expected token using the same process as the truck
+    """
+    Re-generates the expected token using the secret key and timestamp,
+    and compares it to the token received from the truck.
+    """
     expected_token = hmac.new(SECRET_KEY, str(timestamp).encode(), hashlib.sha256).hexdigest()
-
-    # Compare the expected token with the received token (constant-time comparison for security)
     return hmac.compare_digest(expected_token, token)
 
-@app.route('/authenticate', methods=['POST'])
-def authenticate():
-    """Handle authentication requests from the truck."""
-
-    # Get IP of requester
-    ip = request.remote_addr
-    current_time = time.time()  # current time in seconds
-
-    # Check if the IP is already blocked due to too many failed attempts
-    if ip in auth_attempts and auth_attempts[ip]["blocked_until"]:
-        if current_time < auth_attempts[ip]["blocked_until"]:
-            return jsonify({"error": "Too many failed attempts. Blocked temporarily."}), 429
-        else:
-            # Reset block status after time expires
-            auth_attempts[ip] = {"count": 0, "blocked_until": None}
-
-    # Retrieve the token and timestamp sent by the truck
+@app.route('/command', methods=['POST'])
+def handle_command():
+    """
+    Handles incoming commands from the truck.
+    Only accepts requests with a valid token and recent timestamp.
+    """
+    # Get JSON data from the truck's request
     data = request.json
     token = data.get("token")
     timestamp = data.get("timestamp")
 
-    # Verify the authentication token
+    # Basic input validation
+    if not token or not timestamp:
+        return jsonify({"error": "Missing token or timestamp"}), 400
+
+    # Reject old tokens to prevent replay attacks (e.g., from saved requests)
+    if time.time() - int(timestamp) > 10:
+        return jsonify({"error": "Token expired"}), 403
+
+    # Verify that the token is correct
     if verify_token(token, timestamp):
-        return jsonify({"message": "Drone authenticated successfully!"}), 200
+        # The token is valid, so you can execute a secure command here
+        # (e.g., activate motor, send sensor data, etc.)
+        return jsonify({"message": "Command authenticated and accepted"}), 200
     else:
-        # Track the number of failed attempts for this IP
-        auth_attempts[ip] = auth_attempts.get(ip, {"count": 0, "blocked_until": None})
-        auth_attempts[ip]["count"] += 1
+        # Token is invalid – do not execute any command
+        return jsonify({"error": "Invalid authentication token"}), 403
 
-        # If too many failed attempts, block the IP temporarily
-        if auth_attempts[ip]["count"] >= MAX_ATTEMPTS:
-            auth_attempts[ip]["blocked_until"] = current_time + BLOCK_TIME
-            return jsonify({"error": "Too many failed attempts. You are blocked."}), 429
-
-        return jsonify({"error": "Invalid token"}), 401  # authentication failure
-
-# Start the Flask server to listen for authentication requests
+# Start the Flask server on port 5000 and listen on all interfaces
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
