@@ -33,7 +33,7 @@ def handle_command():
         return jsonify({"error": "Missing token or timestamp"}), 400
 
     # Reject old tokens to prevent replay attacks (e.g., from saved requests)
-    if abs(time.time() - int(timestamp)) > 30:
+    if time.time() - int(timestamp) > 10:
         return jsonify({"error": "Token expired"}), 403
 
     # Verify that the token is correct

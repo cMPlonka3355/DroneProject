@@ -1,49 +1,52 @@
-import time
-import hmac            # generating secure message signatures
-import hashlib         # hashing the token
-import requests        # send HTTP requests to drones
+import time              # timestamps and delays
+import hmac              # creating secure authentication tokens
+import hashlib           # SHA-256 hashing (token generation)
+import requests          # send HTTP POST requests to the drones
 
-# Shared secret key (must match what's on the drone)
+# Shared secret key used to generate and verify authentication tokens
 SECRET_KEY = b"supersecurekey"
 
-# Replace with actual IP addresses of drones
-DRONE_IPS = ["192.168.1.10","123.456.7.89"]
+# Time between reauthentication cycles (in seconds)
+REAUTH_INTERVAL = 10
 
-# Authentication attempt limits
-MAX_ATTEMPTS = 5
-BLOCK_TIME = 300  # Block time in seconds (5 minutes)
+# This is the list of drone IPs to authenticate with.
+# These may be replaced dynamically (depending on andrew's part) using a live updated file, etc.
+DRONE_IPS = ["192.168.1.10"]
 
-# keep track of failed attempts from each drone
+# Rate limiting settings
+MAX_ATTEMPTS = 5       # Max failed attempts
+BLOCK_TIME = 300       # Block duration in seconds (5 minutes)
+
+# Dictionary to track failed attempts for each drone IP
 failed_attempts = {}
 
 def generate_signed_token():
     """
-    Generates a time-based HMAC token using the secret key.
-    This token will be verified by the drone.
+    Generate a signed authentication token using the current timestamp and the shared secret key.
+    This token will be sent to the drone and verified using the same shared key.
     """
-    timestamp = int(time.time())
-    # Create a SHA-256 HMAC token using the timestamp
+    timestamp = int(time.time())  # Get the current time (in seconds)
     token = hmac.new(SECRET_KEY, str(timestamp).encode(), hashlib.sha256).hexdigest()
     return token, timestamp
 
 def is_blocked(ip):
     """
-    Checks whether a drone IP is temporarily blocked due to failed attempts.
+    Check if a drone IP is currently blocked due to too many failed authentication attempts.
     """
     if ip in failed_attempts:
         info = failed_attempts[ip]
-        # If still within the block time window, return True
+        # If blocked and still within the block period, return True
         if info["count"] >= MAX_ATTEMPTS and time.time() < info["blocked_until"]:
             return True
         elif time.time() >= info["blocked_until"]:
-            # Reset if block time has expired
+            # If block time has passed, reset the attempt counter
             failed_attempts[ip] = {"count": 0, "blocked_until": 0}
     return False
 
 def record_failed_attempt(ip):
     """
-    Updates the failed attempt count for a drone IP.
-    If max attempts are reached, blocks it for a set time.
+    Record a failed authentication attempt for a given IP.
+    If it reaches the limit, block the IP temporarily.
     """
     if ip not in failed_attempts:
         failed_attempts[ip] = {"count": 1, "blocked_until": 0}
@@ -54,24 +57,25 @@ def record_failed_attempt(ip):
 
 def authenticate_and_send_command(drone_ip):
     """
-    Authenticates with the drone and sends a secure command.
+    Attempt to authenticate with a single drone.
+    If authentication fails too many times, block further attempts for a while.
     """
     if is_blocked(drone_ip):
         print(f"[BLOCKED] {drone_ip} is temporarily blocked.")
         return
 
-    # Generate token and timestamp for authentication
+    # Generate a token and timestamp to send to the drone
     token, timestamp = generate_signed_token()
 
     try:
-        # Send POST request with token to drone's /command endpoint
+        # Send HTTP POST request to the drone's command endpoint
         response = requests.post(
             f"http://{drone_ip}:5000/command",
             json={"token": token, "timestamp": timestamp},
-            timeout=3
+            timeout=3  # timeout so the truck doesn't wait too long if a drone is unreachable
         )
 
-        # Parse response from drone
+        # Parse and print the drone's response
         data = response.json()
         if response.status_code == 200:
             print(f"[SUCCESS] Drone {drone_ip} responded: {data}")
@@ -80,11 +84,20 @@ def authenticate_and_send_command(drone_ip):
             record_failed_attempt(drone_ip)
 
     except requests.RequestException as e:
-        # Handle network errors (e.g., drone offline)
+        # Handle network errors such as timeouts
         print(f"[ERROR] Could not reach drone {drone_ip}: {e}")
         record_failed_attempt(drone_ip)
 
-# Run authentication for all drones
+# Start of truck controller
 if __name__ == "__main__":
-    for drone_ip in DRONE_IPS:
-        authenticate_and_send_command(drone_ip)
+    print("[STARTING] Truck authentication loop")
+
+    # Run authentication in loop (stopped manually)
+    while True:
+        # Try to authenticate with each drone in the list
+        for drone_ip in DRONE_IPS:
+            authenticate_and_send_command(drone_ip)
+
+        # Wait a few seconds before trying again
+        print(f"[WAITING] Sleeping for {REAUTH_INTERVAL} seconds...\n")
+        time.sleep(REAUTH_INTERVAL)
