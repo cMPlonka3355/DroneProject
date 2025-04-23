@@ -1,0 +1,10 @@
+[Unit]
+Description=MAC Rotation
+
+[Service]
+ExecStart=/usr/local/bin/mac_rotate.sh
+Type=simple
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
