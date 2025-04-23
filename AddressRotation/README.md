@@ -74,7 +74,7 @@ The following is output where the interface is `mng` and the gateway IP is `192.
 6. Detect, enable, and run the service by entering:
 > `sudo systemctl daemon-reload`
 >
-> `sudo systemctl enable my_startup_service.service`
+> `sudo systemctl enable mac_rotate.service`
 >
-> `sudo systemctl start my_startup_service.service`
+> `sudo systemctl start mac_rotate.service`
 7. Disconnect from the vehicle, unless you have more to do.
