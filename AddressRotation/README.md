@@ -9,6 +9,10 @@ Task done by Andrew Destacamento
 - The following instructions should be automated if being used for mass deployment.
 
 ### Instructions
+**Generic dnsmasq**
+- Ensure that `--dhcp-sequential-ip` is **not** included in the dnsmasq command line.
+- The `-F` or `--dhcp-range=` can include the lease time, so change this from the default of `1h` to a time between `2m` and `60m`.
+
 **OpenWrt's LuCI**
 1. Login into router by typing the network's gateway IP into a browser.
 2. In the **Network** menu -> **DHCP and DNS** page -> **General** tab, ensure that `Allocate IPs sequentially` is left **unchecked**.
@@ -19,7 +23,7 @@ Task done by Andrew Destacamento
 8. Press the `Save` button in the popup, then press the `Save & Apply` button on the page.
 9. Press the `Log out` button on the page, unless you have more to do.
 
-**SSH**
+**OpenWrt's SSH**
 1. SSH and login into router using `ssh root@[network gateway IP]` .
 2. Ensure that sequential IPs are disabled by entering:
 > `uci del dhcp.cfg01411c.sequential_ip`
@@ -34,7 +38,7 @@ The following is output where the interface is `mng` and the gateway IP is `192.
 > `network.mng.device='br-lan'`
 >
 > `network.mng.ipaddr='192.168.56.2'`
-4. Enable DHCP on the identified interface and adjust the lease time with the last line:
+4. Enable DHCP on the identified interface and adjust the `[Lease time]` to between `2m` and `60m`:
 > `uci set dhcp.mng=dhcp`
 >
 > `uci set dhcp.mng.interface='mng'`
