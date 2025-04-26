@@ -8,8 +8,8 @@
 Connor Plonka\
 Nicholas Palceski\
 Andrew Destacamento\
-Lazaro Loureiro
-Richardson Jacques\
+Lazaro Loureiro\
+Richardson Jacques
 
 
 # Other
