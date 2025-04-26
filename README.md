@@ -9,6 +9,7 @@ Connor Plonka\
 Nicholas Palceski\
 Andrew Destacamento\
 Lazaro Loureiro
+Richardson Jacques\
 
 
 # Other
