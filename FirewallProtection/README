@@ -1,0 +1,2 @@
+The files in this folder are the firewall configuration for the drone and truck respectively, in a system with only one drone and one truck. The configuration can be altered to necessary setup with the IP address matching the address of the corresponding other machine to use.
+This configuration is used alongside the Authentication Flood Prevention and IP Security tunnel.
